@@ -1,0 +1,11 @@
+[      
+    { 
+        "query": "BalanceOfLocked",
+        "identity":"User1",
+        "args": []   
+    },
+    {
+        "invoke": "LockNFT",
+        "args": ["101"]
+    }
+]
