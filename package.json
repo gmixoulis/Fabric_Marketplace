@@ -2,7 +2,7 @@
     "name": "token-erc721",
     "version": "0.0.1",
     "description": "Token-ERC721 contract implemented in JavaScript",
-    "main": "index.js",
+    "main": "./contracts/index.js",
     "engines": {
         "node": ">=12",
         "npm": ">=5"
@@ -11,8 +11,8 @@
         "lint": "eslint .",
         "pretest": "npm run lint",
         "test": "nyc mocha --recursive",
-        "mocha": "mocha --recursive",
-        "start": "fabric-chaincode-node start --peer.address localhost:8000"
+        "mocha": "mocha ./contracts --recursive",
+        "start": "fabric-chaincode-node start"
     },
     "engineStrict": true,
     "author": "Hyperledger",
