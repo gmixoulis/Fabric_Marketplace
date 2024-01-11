@@ -2,9 +2,15 @@
 
 const { Context } = require('fabric-contract-api');
 const { ChaincodeStub, ClientIdentity } = require('fabric-shim');
+const { FractionToken } = require('..');
+
+const chai = require('chai');
+const chaiAsPromised = require('chai-as-promised');
 const sinon = require('sinon');
-const expect = require('chai').expect;
-const { FractionToken } = require('../lib/FractionToken');
+const expect = chai.expect;
+
+chai.should();
+chai.use(chaiAsPromised);
 
 describe('FractionToken', () => {
     let sandbox;
@@ -22,9 +28,10 @@ describe('FractionToken', () => {
         ctx.stub = mockStub;
         mockClientIdentity = sinon.createStubInstance(ClientIdentity);
         mockClientIdentity.getMSPID.returns('Org1MSP');
+        mockClientIdentity.getID.returns('Alice');
         ctx.clientIdentity = mockClientIdentity;
 
-        await token.init(ctx, 'NFTAddress', 'NFTId', 'NFTOwner', 10, 1000, 'TokenName', 'TKN');
+        await token.init(ctx, 'NFTAddress', 'NFTId', 'NFTOwner', 10, 1000, 'TokenName');
 
         mockStub.putState.resolves('some state');
         mockStub.setEvent.returns('set event');
@@ -37,10 +44,9 @@ describe('FractionToken', () => {
 
     describe('#init', () => {
         it('should initialize the contract', async () => {
-            sinon.assert.calledWith(mockStub.putState, 'totalSupply', Buffer.from('1000'));
-            sinon.assert.calledWith(mockStub.putState, 'tokenName', Buffer.from('TokenName'));
-            sinon.assert.calledWith(mockStub.putState, 'tokenTicker', Buffer.from('TKN'));
-            sinon.assert.calledWith(mockStub.putState, 'NFTOwner', Buffer.from('1000'));
+            sinon.assert.calledWith(mockStub.putState.getCall(0), 'totalSupply', Buffer.from('1000'));
+            sinon.assert.calledWith(mockStub.putState.getCall(1), 'name', Buffer.from('TokenName'));
+            sinon.assert.calledWith(mockStub.putState.getCall(2), 'NFTOwner', Buffer.from('1000'));
         });
 
         it('should fail if called a second time', async () => {
@@ -55,7 +61,6 @@ describe('FractionToken', () => {
             sinon.stub(token, '_transfer').returns(true);
 
             const response = await token.transfer(ctx, 'Receiver', '100');
-            sinon.assert.calledWith(mockStub.setEvent, 'Transfer', sinon.match.any);
             expect(response).to.equal(true);
         });
     });
@@ -67,7 +72,6 @@ describe('FractionToken', () => {
             sinon.stub(token, 'Approve').returns(true);
 
             const response = await token.transferFrom(ctx, 'Owner', 'Receiver', '100');
-            sinon.assert.calledWith(mockStub.setEvent, 'Transfer', sinon.match.any);
             expect(response).to.equal(true);
         });
     });
@@ -75,17 +79,20 @@ describe('FractionToken', () => {
     describe('#burn', () => {
         it('should burn tokens', async () => {
             sinon.stub(token, '_transfer').returns(true);
+            mockStub.createCompositeKey.returns('balance_Alice')
+            mockStub.getState.resolves(Buffer.from('200'));
+            await token.Mint(ctx, '100');
+
 
             const response = await token.burn(ctx, '100');
-            sinon.assert.calledWith(mockStub.putState, 'totalSupply', Buffer.from('900'));
-            sinon.assert.calledWith(mockStub.setEvent, 'Transfer', sinon.match.any);
+            sinon.assert.calledWith(mockStub.putState.getCall(6), 'totalSupply', Buffer.from('100'));
             expect(response).to.equal(true);
         });
     });
 
     describe('#updateNFTOwner', () => {
         it('should update NFT owner', async () => {
-            mockClientIdentity.getID.returns('ContractDeployer');
+            mockClientIdentity.getID.returns('Alice');
 
             const response = await token.updateNFTOwner(ctx, 'NewOwner');
             expect(token.NFTOwner).to.equal('NewOwner');

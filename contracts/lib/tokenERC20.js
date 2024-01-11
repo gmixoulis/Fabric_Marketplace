@@ -4,19 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-"use strict";
+'use strict';
 
-const { Contract } = require("fabric-contract-api");
+const { Contract } = require('fabric-contract-api');
 
 // Define objectType names for prefix
-const balancePrefix = "balance";
-const allowancePrefix = "allowance";
+const balancePrefix = 'balance';
+const allowancePrefix = 'allowance';
 
 // Define key names for options
-const nameKey = "name";
-const symbolKey = "symbol";
-const decimalsKey = "decimals";
-const totalSupplyKey = "totalSupply";
+const nameKey = 'name';
+const symbolKey = 'symbol';
+const decimalsKey = 'decimals';
+const totalSupplyKey = 'totalSupply';
 
 class TokenERC20Contract extends Contract {
     /**
@@ -121,13 +121,13 @@ class TokenERC20Contract extends Contract {
 
         const transferResp = await this._transfer(ctx, from, to, value);
         if (!transferResp) {
-            throw new Error("Failed to transfer");
+            throw new Error('Failed to transfer');
         }
 
         // Emit the Transfer event
         const transferEvent = { from, to, value: parseInt(value) };
         ctx.stub.setEvent(
-            "Transfer",
+            'Transfer',
             Buffer.from(JSON.stringify(transferEvent))
         );
 
@@ -146,7 +146,6 @@ class TokenERC20Contract extends Contract {
     async TransferFrom(ctx, from, to, value) {
         // Check contract options are already set first to execute the function
         await this.CheckInitialized(ctx);
-
         const spender = ctx.clientIdentity.getID();
 
         // Retrieve the allowance of the spender
@@ -168,13 +167,13 @@ class TokenERC20Contract extends Contract {
         // Check if the transferred value is less than the allowance
         if (currentAllowance < valueInt) {
             throw new Error(
-                "The spender does not have enough allowance to spend."
+                'The spender does not have enough allowance to spend.'
             );
         }
 
         const transferResp = await this._transfer(ctx, from, to, value);
         if (!transferResp) {
-            throw new Error("Failed to transfer");
+            throw new Error('Failed to transfer');
         }
 
         // Decrease the allowance
@@ -190,17 +189,17 @@ class TokenERC20Contract extends Contract {
         // Emit the Transfer event
         const transferEvent = { from, to, value: valueInt };
         ctx.stub.setEvent(
-            "Transfer",
+            'Transfer',
             Buffer.from(JSON.stringify(transferEvent))
         );
 
-        console.log("transferFrom ended successfully");
+        console.log('transferFrom ended successfully');
         return true;
     }
 
     async _transfer(ctx, from, to, value) {
         if (from === to) {
-            throw new Error("cannot transfer to and from same client account");
+            throw new Error('cannot transfer to and from same client account');
         }
 
         // Convert value from string to int
@@ -208,7 +207,7 @@ class TokenERC20Contract extends Contract {
 
         if (valueInt < 0) {
             // transfer of 0 is allowed in ERC20, so just validate against negative amounts
-            throw new Error("transfer amount cannot be negative");
+            throw new Error('transfer amount cannot be negative');
         }
 
         // Retrieve the current balance of the sender
@@ -288,11 +287,11 @@ class TokenERC20Contract extends Contract {
         // Emit the Approval event
         const approvalEvent = { owner, spender, value: valueInt };
         ctx.stub.setEvent(
-            "Approval",
+            'Approval',
             Buffer.from(JSON.stringify(approvalEvent))
         );
 
-        console.log("approve ended successfully");
+        console.log('approve ended successfully');
         return true;
     }
 
@@ -339,15 +338,15 @@ class TokenERC20Contract extends Contract {
     async Initialize(ctx, name, symbol, decimals) {
         // Check minter authorization - this sample assumes Org1 is the central banker with privilege to set Options for these tokens
         const clientMSPID = ctx.clientIdentity.getMSPID();
-        if (clientMSPID !== "Org1MSP") {
-            throw new Error("client is not authorized to initialize contract");
+        if (clientMSPID !== 'Org1MSP') {
+            throw new Error('client is not authorized to initialize contract');
         }
 
         // Check contract options are not already set, client is not authorized to change them once intitialized
         const nameBytes = await ctx.stub.getState(nameKey);
         if (nameBytes && nameBytes.length > 0) {
             throw new Error(
-                "contract options are already set, client is not authorized to change them"
+                'contract options are already set, client is not authorized to change them'
             );
         }
 
@@ -372,16 +371,15 @@ class TokenERC20Contract extends Contract {
 
         // Check minter authorization - this sample assumes Org1 is the central banker with privilege to mint new tokens
         const clientMSPID = ctx.clientIdentity.getMSPID();
-        if (clientMSPID !== "Org1MSP") {
-            throw new Error("client is not authorized to mint new tokens");
+        if (clientMSPID !== 'Org1MSP') {
+            throw new Error('client is not authorized to mint new tokens');
         }
 
         // Get ID of submitting client identity
         const minter = ctx.clientIdentity.getID();
-
         const amountInt = parseInt(amount);
         if (amountInt <= 0) {
-            throw new Error("mint amount must be a positive integer");
+            throw new Error('mint amount must be a positive integer');
         }
 
         const balanceKey = ctx.stub.createCompositeKey(balancePrefix, [minter]);
@@ -405,7 +403,7 @@ class TokenERC20Contract extends Contract {
         const totalSupplyBytes = await ctx.stub.getState(totalSupplyKey);
         let totalSupply;
         if (!totalSupplyBytes || totalSupplyBytes.length === 0) {
-            console.log("Initialize the tokenSupply");
+            console.log('Initialize the tokenSupply');
             totalSupply = 0;
         } else {
             totalSupply = parseInt(totalSupplyBytes.toString());
@@ -417,9 +415,9 @@ class TokenERC20Contract extends Contract {
         );
 
         // Emit the Transfer event
-        const transferEvent = { from: "0x0", to: minter, value: amountInt };
+        const transferEvent = { from: '0x0', to: minter, value: amountInt };
         ctx.stub.setEvent(
-            "Transfer",
+            'Transfer',
             Buffer.from(JSON.stringify(transferEvent))
         );
 
@@ -432,7 +430,7 @@ class TokenERC20Contract extends Contract {
         const currentAllowance = this.Allowance(ctx, owner, spender);
         if (currentAllowance !== Number.MAX_SAFE_INTEGER) {
             if (currentAllowance < value) {
-                throw new Error("ERC20InsufficientAllowance");
+                throw new Error('ERC20InsufficientAllowance');
             }
             await this.CheckInitialized(ctx);
 
@@ -459,8 +457,8 @@ class TokenERC20Contract extends Contract {
 
         // Check minter authorization - this sample assumes Org1 is the central banker with privilege to burn tokens
         const clientMSPID = ctx.clientIdentity.getMSPID();
-        if (clientMSPID !== "Org1MSP") {
-            throw new Error("client is not authorized to mint new tokens");
+        if (clientMSPID !== 'Org1MSP') {
+            throw new Error('client is not authorized to mint new tokens');
         }
 
         const minter = ctx.clientIdentity.getID();
@@ -471,7 +469,7 @@ class TokenERC20Contract extends Contract {
 
         const currentBalanceBytes = await ctx.stub.getState(balanceKey);
         if (!currentBalanceBytes || currentBalanceBytes.length === 0) {
-            throw new Error("The balance does not exist");
+            throw new Error('The balance does not exist');
         }
         const currentBalance = parseInt(currentBalanceBytes.toString());
         const updatedBalance = this.sub(currentBalance, amountInt);
@@ -484,7 +482,7 @@ class TokenERC20Contract extends Contract {
         // Decrease totalSupply
         const totalSupplyBytes = await ctx.stub.getState(totalSupplyKey);
         if (!totalSupplyBytes || totalSupplyBytes.length === 0) {
-            throw new Error("totalSupply does not exist.");
+            throw new Error('totalSupply does not exist.');
         }
         const totalSupply = this.sub(
             parseInt(totalSupplyBytes.toString()),
@@ -496,15 +494,16 @@ class TokenERC20Contract extends Contract {
         );
 
         // Emit the Transfer event
-        const transferEvent = { from: minter, to: "0x0", value: amountInt };
+        const transferEvent = { from: minter, to: '0x0', value: amountInt };
         ctx.stub.setEvent(
-            "Transfer",
+            'Transfer',
             Buffer.from(JSON.stringify(transferEvent))
         );
 
         console.log(
             `minter account ${minter} balance updated from ${currentBalance} to ${updatedBalance}`
         );
+
         return true;
     }
 
@@ -550,7 +549,7 @@ class TokenERC20Contract extends Contract {
         const nameBytes = await ctx.stub.getState(nameKey);
         if (!nameBytes || nameBytes.length === 0) {
             throw new Error(
-                "contract options need to be set before calling any function, call Initialize() to initialize contract"
+                'contract options need to be set before calling any function, call Initialize() to initialize contract'
             );
         }
     }
@@ -574,4 +573,12 @@ class TokenERC20Contract extends Contract {
     }
 }
 
-module.exports = TokenERC20Contract;
+module.exports = {
+    TokenERC20Contract,
+    balancePrefix,
+    allowancePrefix,
+    nameKey,
+    symbolKey,
+    decimalsKey,
+    totalSupplyKey,
+};
