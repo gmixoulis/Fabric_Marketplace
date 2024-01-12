@@ -1,0 +1,19 @@
+[      
+    // { 
+    //     "query": "BalanceOfLocked",
+    //     "identity":"User1",
+    //     "args": []   
+    // },
+    {
+        "invoke": "init",
+        "args": ["MyNFT", "MySymbol"]
+    },
+    {
+      "invoke": "MintWithTokenURIS",
+      "args": ["101", "myMetadataStringifyJson","MyDataHasg"]
+    },
+    {
+      "invoke": "MintAndTransferSmallerTokens",
+      "args": ["101", "10","date","myMetadataStringifyJson"]
+    }
+]

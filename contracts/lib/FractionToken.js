@@ -1,90 +1,53 @@
 'use strict';
 const{
-    TokenERC20Contract,
+    TokenERC721Contract,
     balancePrefix,
-    allowancePrefix,
     nameKey,
     symbolKey,
-    decimalsKey,
-    totalSupplyKey,
-} = require('./tokenERC20');
-class FractionToken extends TokenERC20Contract {
-    constructor() {
-        super('FractionToken');
-        this.NFTAddress = '';
-        this.NFTId = 0;
-        this.NFTOwner = '';
-        this.ContractDeployer = '';
-        this.RoyaltyPercentage = 0;
-        this.tokenOwners = [];
+    nftPrefix,
+    approvalPrefix
+} = require('./tokenERC721');
+const crypto = require('crypto');
+
+// const fractionPrefix = 'FRACTION';
+// const vault= 'VAULT';
+class FractionToken extends TokenERC721Contract {
+
+    async init(ctx, name, symbol) {
+        return await this.Initialize(ctx, name, symbol);
     }
 
-    async init(
-        ctx,
-        NFTAddress,
-        NFTId,
-        NFTOwner,
-        RoyaltyPercentage,
-        supply,
-        tokenName,
-    ) {
-        this.NFTAddress = NFTAddress;
-        this.NFTId = NFTId;
-        this.NFTOwner = NFTOwner;
-        this.RoyaltyPercentage = RoyaltyPercentage;
-        this.ContractDeployer = ctx.clientIdentity.getID();
-
-        const nameBytes = await ctx.stub.getState(nameKey);
-        if (nameBytes && nameBytes.length > 0) {
-            throw new Error('contract options are already set, client is not authorized to change them');
+    async FractionBatchTransferFrom(ctx, from, to, tokenIds) {
+        for (let i = 0; i < tokenIds.length; i++) {
+            await this.FractionTransferFrom(ctx, from, to, tokenIds[i]);
         }
-
-        await ctx.stub.putState(totalSupplyKey, Buffer.from(supply.toString()));
-        await ctx.stub.putState(nameKey, Buffer.from(tokenName));
-        await ctx.stub.putState(NFTOwner, Buffer.from(supply.toString()));
-    }
-
-    async transfer(ctx, to, amount) {
-    // Calculate royalty fee
-        const valueInt = parseInt(amount);
-
-        if (valueInt < 0) {
-            // transfer of 0 is allowed in ERC20, so just validate against negative amounts
-            throw new Error('transfer amount cannot be negative');
-        }
-
-        const royaltyFee = (amount * this.RoyaltyPercentage) / 100;
-        const afterRoyaltyFee = amount - royaltyFee;
-        const owner = ctx.clientIdentity.getID();
-
-        // Send royalty fee to owner
-        await this._transfer(ctx, owner, this.NFTOwner, royaltyFee.toString());
-        // Send the rest to the receiver
-        await this._transfer(ctx, owner, to, afterRoyaltyFee.toString());
 
         return true;
     }
 
-    async transferFrom(ctx, from, to, amount) {
-    // Calculate royalty fee
-        const spender = ctx.clientIdentity.getID();
-        await this.Approve(ctx, from, spender, amount);
-        const royaltyFee = (amount * this.RoyaltyPercentage) / 100;
-        const afterRoyaltyFee = amount - royaltyFee;
+    async FractionsMintWithTokenURI(ctx, tokenIds, metadatas, datahash){
+        await Promise.all(tokenIds.map(async (tokenId,index) => {
+            console.log('first');
+            await this.MintFractionWithTokenURI(ctx, tokenId, metadatas[index], datahash);
+        }));
 
-        // Send royalty fee to owner
-        await this._transfer(ctx, from, this.NFTOwner, royaltyFee.toString());
-        // Send the rest to the receiver
-        await this._transfer(ctx, from, to, afterRoyaltyFee.toString());
+        // for (let i = 0; i < tokenIds.length; i++) {
+        //     console.log('first');
+        //     await this.MintFractionWithTokenURI(ctx, tokenIds[i], metadatas[i], datahash);
+        // }
 
         return true;
     }
 
-    async burn(ctx, amount) {
-        return await this.Burn(ctx, amount);
+    async FractionsBatchBurn(ctx, tokenIds) {
+        for (let i = 0; i < tokenIds.length; i++) {
+            await this.Burn(ctx, tokenIds[i]);
+        }
+
+        return true;
     }
 
-    async updateNFTOwner(ctx, newOwner) {
+    async UpdateNFTOwner(ctx, newOwner) {
         if (ctx.clientIdentity.getID() !== this.ContractDeployer) {
             throw new Error('Only contract deployer can call this function');
         }
@@ -92,8 +55,53 @@ class FractionToken extends TokenERC20Contract {
         this.NFTOwner = newOwner;
     }
 
-    async returnTokenOwners() {
+    async GetTokenOwners() {
         return this.tokenOwners;
+    }
+
+    async MintWithTokenURIS(ctx, tokenId, metadata, dataHash){
+        return this.MintWithTokenURI(ctx, tokenId, metadata, dataHash);
+    }
+
+    async MintAndTransferSmallerTokens(ctx, originalTokenId, numberOfSmallerTokens, expirationDate, fractionJson) {
+        // Check contract options are already set first to execute the function
+        await this.CheckInitialized(ctx);
+
+        const caller = ctx.clientIdentity.getID();
+
+        // Check if the caller is the owner of the original ERC721 token
+        const originalTokenOwner = await this.OwnerOf(ctx, originalTokenId);
+        if (originalTokenOwner !== caller) {
+            throw new Error('Caller is not the owner of the original ERC721 token');
+        }
+
+        // Read details of the original ERC721 token
+        const originalToken = await this._readNFT(ctx, originalTokenId);
+
+        // Define JSON data for the smaller tokens
+        const jsonData = {
+            name: 'Smaller Token',
+            description: 'This is a smaller ERC721 token',
+            originalTokenId: originalTokenId,
+            timestamp: Math.floor(Date.now() / 1000), // Current timestamp in seconds,
+            json: fractionJson,
+        };
+
+        // Hash the JSON data
+        const jsonHash = crypto.createHash('sha256').update(JSON.stringify(jsonData)).digest('hex');
+
+        const {tokenIds,jsonDatas}=[...Array(Number(numberOfSmallerTokens))].reduce((acc,cur,index)=>{
+            const smallerTokenId = `${originalTokenId}-${index + 1}`;
+
+            return {
+                tokenIds: [...acc.tokenIds, smallerTokenId],
+                jsonDatas: [...acc.jsonDatas, jsonData],
+            };
+        },{tokenIds: [], jsonDatas: []});
+
+        this.FractionsMintWithTokenURI(ctx,tokenIds,jsonDatas,jsonHash);
+
+        return true;
     }
 }
 

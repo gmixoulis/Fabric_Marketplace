@@ -8,15 +8,21 @@ const { Contract } = require('fabric-contract-api');
 
 // Define objectType names for prefix
 const balancePrefix = 'balance';
+const balanceFractionPrefix = 'balance';
 const nftPrefix = 'nft';
+const nftFractionPrefix = 'nftFraction';
 const approvalPrefix = 'approval';
+const approvalFractionPrefix = 'approval';
 
 // Define key names for options
 const nameKey = 'name';
 const symbolKey = 'symbol';
+const fractionPrefix = 'FRACTION';
+const vault= 'VAULT';
+// const nameFractionKey = 'fractionName';
+// const symbolFractionKey = 'fractionSymbol';
 
 class TokenERC721Contract extends Contract {
-
     /**
      * BalanceOf counts all non-fungible tokens assigned to an owner
      *
@@ -329,7 +335,7 @@ class TokenERC721Contract extends Contract {
      * @param {String} tokenURI URI containing metadata of the minted non-fungible token
      * @returns {Object} Return the non-fungible token object
     */
-    async MintWithTokenURI(ctx, tokenId, tokenURI) {
+    async MintWithTokenURI(ctx, tokenId, metadata, dataHash) {
         // Check contract options are already set first to execute the function
         await this.CheckInitialized(ctx);
 
@@ -356,7 +362,8 @@ class TokenERC721Contract extends Contract {
         const nft = {
             tokenId: tokenIdInt,
             owner: minter,
-            tokenURI: tokenURI
+            metadata,
+            dataHash
         };
         const nftKey = ctx.stub.createCompositeKey(nftPrefix, [tokenId]);
         await ctx.stub.putState(nftKey, Buffer.from(JSON.stringify(nft)));
@@ -372,6 +379,64 @@ class TokenERC721Contract extends Contract {
         ctx.stub.setEvent('Transfer', Buffer.from(JSON.stringify(transferEvent)));
 
         return nft;
+    }
+
+    /**
+     * Mint a new non-fungible token
+     *
+     * @param {Context} ctx the transaction context
+     * @param {String} tokenId Unique ID of the non-fungible token to be minted
+     * @param {String} tokenURI URI containing metadata of the minted non-fungible token
+     * @returns {Object} Return the non-fungible token object
+    */
+    async MintFractionWithTokenURI(ctx, tokenId, metadata, dataHash) {
+    // Check contract options are already set first to execute the function
+        await this.CheckInitialized(ctx);
+
+        // Check minter authorization - this sample assumes Org1 is the issuer with privilege to mint a new token
+        const clientMSPID = ctx.clientIdentity.getMSPID();
+        if (clientMSPID !== 'Org1MSP') {
+            throw new Error('client is not authorized to mint new tokens');
+        }
+
+        // Get ID of submitting client identity
+        const minter = ctx.clientIdentity.getID();
+
+        // Check if the token to be minted does not exist
+        const exists = await this._nftExists(ctx, tokenId, fractionPrefix);
+        if (exists) {
+            throw new Error(`The token ${tokenId} is already minted.`);
+        }
+
+        // Add a non-fungible token
+        const tokenIdInt = parseInt(tokenId);
+
+        if (isNaN(tokenIdInt)) {
+            throw new Error(`The tokenId ${tokenId} is invalid. tokenId must be an integer`);
+        }
+
+        const fractionNft = {
+            tokenId: tokenIdInt,
+            owner: minter,
+            metadata,
+            dataHash,
+        };
+
+        const nftKey = ctx.stub.createCompositeKey(nftFractionPrefix, [tokenId]);
+
+        await ctx.stub.putState(nftKey, Buffer.from(JSON.stringify(fractionNft)));
+
+        // A composite key would be balancePrefix.owner.tokenId, which enables partial
+        // composite key query to find and count all records matching balance.owner.*
+        // An empty value would represent a delete, so we simply insert the null character.
+        const balanceKey = ctx.stub.createCompositeKey(balanceFractionPrefix, [minter, tokenId]);
+        await ctx.stub.putState(balanceKey, Buffer.from('\u0000'));
+
+        // Emit the Transfer event
+        const transferEvent = { from: '0x0', to: minter, tokenId: tokenIdInt };
+        ctx.stub.setEvent('Transfer', Buffer.from(JSON.stringify(transferEvent)));
+
+        return fractionNft;
     }
 
     /**
@@ -419,7 +484,7 @@ class TokenERC721Contract extends Contract {
         return nft;
     }
 
-    async _nftExists(ctx, tokenId) {
+    async _nftExists(ctx, tokenId, nftPrefix) {
         const nftKey = ctx.stub.createCompositeKey(nftPrefix, [tokenId]);
         const nftBytes = await ctx.stub.getState(nftKey);
         return nftBytes && nftBytes.length > 0;
@@ -462,4 +527,11 @@ class TokenERC721Contract extends Contract {
     }
 }
 
-module.exports = TokenERC721Contract;
+module.exports = {
+    TokenERC721Contract,
+    balancePrefix,
+    nameKey,
+    symbolKey,
+    nftPrefix,
+    approvalPrefix
+};
