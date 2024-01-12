@@ -8,7 +8,7 @@
 
 const { Contract } = require('fabric-contract-api');
 const { TokenERC721Contract, Transfer } = require('./tokenERC721');
-const { FractionToken, MintFraction, TransferFraction } = require('./FractionToken');
+const { FractionToken } = require('./FractionToken');
 
 
 const vault = 'Vault';
