@@ -26,15 +26,12 @@ class FractionToken extends TokenERC721Contract {
     }
 
     async FractionsMintWithTokenURI(ctx, tokenIds, metadatas, datahash){
-        await Promise.all(tokenIds.map(async (tokenId,index) => {
-            console.log('first');
-            await this.MintFractionWithTokenURI(ctx, tokenId, metadatas[index], datahash);
-        }));
-
-        // for (let i = 0; i < tokenIds.length; i++) {
-        //     console.log('first');
-        //     await this.MintFractionWithTokenURI(ctx, tokenIds[i], metadatas[i], datahash);
-        // }
+        await Promise.all(
+            tokenIds.map(async (tokenId,index) => {
+                console.log('second');
+                await this.MintFractionWithTokenURI(ctx, tokenId, metadatas[index], datahash);
+            })
+        );
 
         return true;
     }

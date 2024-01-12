@@ -349,7 +349,7 @@ class TokenERC721Contract extends Contract {
         const minter = ctx.clientIdentity.getID();
 
         // Check if the token to be minted does not exist
-        const exists = await this._nftExists(ctx, tokenId);
+        const exists = await this._nftExists(ctx, tokenId, nftPrefix);
         if (exists) {
             throw new Error(`The token ${tokenId} is already minted.`);
         }
@@ -487,6 +487,7 @@ class TokenERC721Contract extends Contract {
     async _nftExists(ctx, tokenId, nftPrefix) {
         const nftKey = ctx.stub.createCompositeKey(nftPrefix, [tokenId]);
         const nftBytes = await ctx.stub.getState(nftKey);
+
         return nftBytes && nftBytes.length > 0;
     }
 
