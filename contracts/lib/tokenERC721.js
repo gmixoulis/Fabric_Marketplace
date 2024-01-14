@@ -8,16 +8,15 @@ const { Contract } = require('fabric-contract-api');
 
 // Define objectType names for prefix
 const balancePrefix = 'balance';
-const balanceFractionPrefix = 'balance';
+const balanceFractionPrefix = 'fractionBalance';
 const nftPrefix = 'nft';
-const nftFractionPrefix = 'nftFraction';
 const approvalPrefix = 'approval';
-const approvalFractionPrefix = 'approval';
+const approvalFractionPrefix = 'fractionApproval';
 
 // Define key names for options
 const nameKey = 'name';
 const symbolKey = 'symbol';
-const fractionPrefix = 'FRACTION';
+const fractionPrefix = 'fraction';
 const vault= 'VAULT';
 // const nameFractionKey = 'fractionName';
 // const symbolFractionKey = 'fractionSymbol';
@@ -30,7 +29,7 @@ class TokenERC721Contract extends Contract {
      * @param {String} owner An owner for whom to query the balance
      * @returns {Number} The number of non-fungible tokens owned by the owner, possibly zero
      */
-    async BalanceOf(ctx, owner) {
+    async BalanceOf(ctx, owner, balancePrefix) {
         // Check contract options are already set first to execute the function
         await this.CheckInitialized(ctx);
 
@@ -55,11 +54,11 @@ class TokenERC721Contract extends Contract {
      * @param {String} tokenId The identifier for a non-fungible token
      * @returns {String} Return the owner of the non-fungible token
      */
-    async OwnerOf(ctx, tokenId) {
+    async OwnerOf(ctx, tokenId, nftPrefix) {
         // Check contract options are already set first to execute the function
         await this.CheckInitialized(ctx);
 
-        const nft = await this._readNFT(ctx, tokenId);
+        const nft = await this._readNFT(ctx, tokenId, nftPrefix);
         const owner = nft.owner;
         if (!owner) {
             throw new Error('No owner is assigned to this token');
@@ -422,15 +421,14 @@ class TokenERC721Contract extends Contract {
             dataHash,
         };
 
-        const nftKey = ctx.stub.createCompositeKey(nftFractionPrefix, [tokenId]);
-
-        await ctx.stub.putState(nftKey, Buffer.from(JSON.stringify(fractionNft)));
+        const fractionNftKey = ctx.stub.createCompositeKey(fractionPrefix, [tokenId]);
+        await ctx.stub.putState(fractionNftKey, Buffer.from(JSON.stringify(fractionNft)));
 
         // A composite key would be balancePrefix.owner.tokenId, which enables partial
         // composite key query to find and count all records matching balance.owner.*
         // An empty value would represent a delete, so we simply insert the null character.
-        const balanceKey = ctx.stub.createCompositeKey(balanceFractionPrefix, [minter, tokenId]);
-        await ctx.stub.putState(balanceKey, Buffer.from('\u0000'));
+        const fractionBalanceKey = ctx.stub.createCompositeKey(balanceFractionPrefix, [minter, tokenId]);
+        await ctx.stub.putState(fractionBalanceKey, Buffer.from('\u0000'));
 
         // Emit the Transfer event
         const transferEvent = { from: '0x0', to: minter, tokenId: tokenIdInt };
@@ -474,7 +472,7 @@ class TokenERC721Contract extends Contract {
         return true;
     }
 
-    async _readNFT(ctx, tokenId) {
+    async _readNFT(ctx, tokenId, nftPrefix) {
         const nftKey = ctx.stub.createCompositeKey(nftPrefix, [tokenId]);
         const nftBytes = await ctx.stub.getState(nftKey);
         if (!nftBytes || nftBytes.length === 0) {
@@ -497,13 +495,13 @@ class TokenERC721Contract extends Contract {
      * @param {Context} ctx the transaction context
      * @returns {Number} Returns the account balance
      */
-    async ClientAccountBalance(ctx) {
+    async ClientAccountBalance(ctx, balancePrefix) {
         // check contract options are already set first to execute the function
         await this.CheckInitialized(ctx);
 
         // Get ID of submitting client identity
         const clientAccountID = ctx.clientIdentity.getID();
-        return this.BalanceOf(ctx, clientAccountID);
+        return this.BalanceOf(ctx, clientAccountID, balancePrefix);
     }
 
     // ClientAccountID returns the id of the requesting client's account.

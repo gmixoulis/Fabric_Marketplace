@@ -28,7 +28,6 @@ class FractionToken extends TokenERC721Contract {
     async FractionsMintWithTokenURI(ctx, tokenIds, metadatas, datahash){
         await Promise.all(
             tokenIds.map(async (tokenId,index) => {
-                console.log('second');
                 await this.MintFractionWithTokenURI(ctx, tokenId, metadatas[index], datahash);
             })
         );
@@ -61,13 +60,10 @@ class FractionToken extends TokenERC721Contract {
     }
 
     async MintAndTransferSmallerTokens(ctx, originalTokenId, numberOfSmallerTokens, expirationDate, fractionJson) {
-        // Check contract options are already set first to execute the function
-        await this.CheckInitialized(ctx);
-
         const caller = ctx.clientIdentity.getID();
 
         // Check if the caller is the owner of the original ERC721 token
-        const originalTokenOwner = await this.OwnerOf(ctx, originalTokenId);
+        const originalTokenOwner = await this.OwnerOf(ctx, originalTokenId, 'nft');
         if (originalTokenOwner !== caller) {
             throw new Error('Caller is not the owner of the original ERC721 token');
         }
@@ -80,6 +76,7 @@ class FractionToken extends TokenERC721Contract {
             name: 'Smaller Token',
             description: 'This is a smaller ERC721 token',
             originalTokenId: originalTokenId,
+            fractions: Number(numberOfSmallerTokens),
             timestamp: Math.floor(Date.now() / 1000), // Current timestamp in seconds,
             json: fractionJson,
         };
@@ -96,9 +93,16 @@ class FractionToken extends TokenERC721Contract {
             };
         },{tokenIds: [], jsonDatas: []});
 
-        this.FractionsMintWithTokenURI(ctx,tokenIds,jsonDatas,jsonHash);
+        return await this.FractionsMintWithTokenURI(ctx,tokenIds,jsonDatas,jsonHash);
+    }
 
-        return true;
+    // async getFractionBalance
+    async getClientAccountBalance(ctx) {
+        return await this.ClientAccountBalance(ctx,'balance');
+    }
+
+    async getClientFractionAccountBalance(ctx) {
+        return await this.ClientAccountBalance(ctx,'fractionBalance');
     }
 }
 
