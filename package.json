@@ -2,7 +2,7 @@
     "name": "token-erc721",
     "version": "0.0.1",
     "description": "Token-ERC721 contract implemented in JavaScript",
-    "main": "./contracts/index.js",
+    "main": "index.js",
     "engines": {
         "node": ">=12",
         "npm": ">=5"
