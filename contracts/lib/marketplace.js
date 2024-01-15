@@ -115,6 +115,115 @@ class MarketplaceContract extends FractionToken {
         }
     }
 
+    async getNFTDetails(ctx, nftId) {
+        if (!nftId) {
+            throw new Error('NFT ID is required');
+        }
+    
+        const nftKey = ctx.stub.createCompositeKey(nftPrefix, [nftId]);
+        const nftDetailsBuffer = await ctx.stub.getState(nftKey);
+    
+        if (!nftDetailsBuffer || nftDetailsBuffer.length === 0) {
+            throw new Error(`NFT with ID ${nftId} does not exist`);
+        }
+    
+        const nftDetails = JSON.parse(nftDetailsBuffer.toString());
+        return nftDetails;
+    }
+    
+    async getFractionalNFTDetails(ctx, fractionTokenId) {
+        if (!fractionTokenId) {
+            throw new Error('Fractional Token ID is required');
+        }
+    
+        const fractionKey = ctx.stub.createCompositeKey(fractionPrefix, [fractionTokenId]);
+        const fractionDetailsBuffer = await ctx.stub.getState(fractionKey);
+    
+        if (!fractionDetailsBuffer || fractionDetailsBuffer.length === 0) {
+            throw new Error(`Fractional Token with ID ${fractionTokenId} does not exist`);
+        }
+    
+        const fractionDetails = JSON.parse(fractionDetailsBuffer.toString());
+        return fractionDetails;
+    }
+    
+
+    async getNFTOwnershipHistory(ctx, nftId) {
+        if (!nftId) {
+            throw new Error('NFT ID is required');
+        }
+    
+        const historyIterator = await ctx.stub.getStateByPartialCompositeKey(historyPrefix, [nftId]);
+        const ownershipHistory = [];
+    
+        let result = await historyIterator.next();
+        while (!result.done) {
+            const response = result.value;
+            if (response) {
+                const record = JSON.parse(response.value.toString('utf8'));
+                ownershipHistory.push(record);
+            }
+            result = await historyIterator.next();
+        }
+    
+        await historyIterator.close();
+    
+        if (ownershipHistory.length === 0) {
+            throw new Error(`No ownership history found for NFT ID ${nftId}`);
+        }
+    
+        return ownershipHistory;
+    }
+
+    async getAllNFTsInVault(ctx) {
+        const iterator = await ctx.stub.getStateByPartialCompositeKey(historyPrefix, [vault]);
+        const nftsInVault = [];
+    
+        let result = await iterator.next();
+        while (!result.done) {
+            const response = result.value;
+            if (response) {
+                const record = JSON.parse(response.value.toString('utf8'));
+                if (record.currentOwner === vault) {
+                    nftsInVault.push({ tokenId: response.key, ...record });
+                }
+            }
+            result = await iterator.next();
+        }
+    
+        await iterator.close();
+    
+        return nftsInVault;
+    }
+    
+    async getUserSpecificData(ctx, userId) {
+        if (!userId) {
+            throw new Error('User ID is required');
+        }
+    
+        const iterator = await ctx.stub.getStateByPartialCompositeKey(balancePrefix, [userId]);
+        const userNFTs = [];
+    
+        let result = await iterator.next();
+        while (!result.done) {
+            const response = result.value;
+            if (response) {
+                const tokenId = ctx.stub.splitCompositeKey(response.key).attributes[1];
+                userNFTs.push(tokenId);
+            }
+            result = await iterator.next();
+        }
+    
+        await iterator.close();
+    
+        if (userNFTs.length === 0) {
+            throw new Error(`No NFTs found for user ID ${userId}`);
+        }
+    
+        return userNFTs;
+    }
+
+
 }
 
 module.exports = MarketplaceContract;
