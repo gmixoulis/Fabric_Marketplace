@@ -6,8 +6,6 @@
 
 'use strict';
 
-const { Contract } = require('fabric-contract-api');
-const { TokenERC721Contract, Transfer } = require('./tokenERC721');
 const { FractionToken } = require('./FractionToken');
 
 
@@ -19,7 +17,11 @@ const vault = 'Vault';
 const historyPrefix= 'ownershipHistory';
 const balancePrefix = 'balance';
 
-class MarketplaceContract extends Contract {
+class MarketplaceContract extends FractionToken {
+
+    constructor() {
+        super();
+    }
 
     async BalanceOfLocked(ctx) {
         const iterator = await ctx.stub.getStateByPartialCompositeKey(balancePrefix, [vault]);
@@ -35,27 +37,24 @@ class MarketplaceContract extends Contract {
     }
  
     async BurnNFT(ctx, tokenId) {
-    
-        // Calling the Burn function from TokenERC721Contract
-        await Burn(ctx, tokenId);
+
+        await this.Burn(ctx, tokenId);
         
         return true;
     }
 
     async LockNFT(ctx, tokenId) {
         const owner = ctx.clientIdentity.getID();
-        //const channel = await ctx.stub.getChannelID();
 
-        //await ctx.stub.invokeChaincode('marketplace', ['TransferFrom', owner, vault, tokenId], channel);
-        await TransferFrom(ctx, owner, vault, tokenId)
+        await this.TransferFrom(ctx, owner, vault, tokenId);
 
+        // Record the transfer in ownership history
         const historyKey = ctx.stub.createCompositeKey(historyPrefix, [tokenId]);
         const historyEntry = {
             previousOwner: owner,
-            currentOwner: 'Vault', // Assuming the vault is the new owner
+            currentOwner: vault,
             timestamp: new Date().toISOString(),
         };
-
         await ctx.stub.putState(historyKey, Buffer.from(JSON.stringify(historyEntry)));
 
         return true;
@@ -64,13 +63,10 @@ class MarketplaceContract extends Contract {
     async UnlockNFT(ctx, tokenId) {
         // Retrieve the original owner of the NFT
         const originalOwner = await this.getNFTOwner(ctx, tokenId);
-        if (!originalOwner) {
-            throw new Error(`No owner found for NFT with ID ${tokenId}`);
-        }
-    
+
         // Transfer the NFT from the vault back to the original owner
-        await Transfer(ctx, vault, originalOwner, tokenId);
-    
+        await this.Transfer(ctx, vault, originalOwner, tokenId);
+
         // Update the historical record of the NFT transfer
         const historyKey = ctx.stub.createCompositeKey(historyPrefix, [tokenId]);
         const historyEntry = {
@@ -79,43 +75,27 @@ class MarketplaceContract extends Contract {
             timestamp: new Date().toISOString(),
         };
         await ctx.stub.putState(historyKey, Buffer.from(JSON.stringify(historyEntry)));
-    
+
         return true;
     }
 
 
     async LockNFTAndMintFractionNFT(ctx, originalTokenId, numberOfFractions, fractionJson) {
-        
-        if (!originalTokenId || numberOfFractions <= 0 || !fractionJson) {
-            throw new Error('Invalid input parameters');
-        }
-    
+        // Validation and locking of original NFT
         await this.LockNFT(ctx, originalTokenId);
-    
+
         // Mint fractional NFTs
-        const fractionToken = new FractionToken();
-        const expirationDate = ""; // ??
         try {
-            await fractionToken.MintAndTransferSmallerTokens(ctx, originalTokenId, numberOfFractions, expirationDate, fractionJson);
+            await this.MintAndTransferSmallerTokens(ctx, originalTokenId, numberOfFractions, "", fractionJson);
             return true;
         } catch (error) {
             throw new Error(`Error while minting fractional tokens: ${error.message}`);
         }
     }
-    
 
     async BuyFractionNFT(ctx, fractionTokenId, buyer) {
-
-        if (!fractionTokenId || !buyer) {
-            throw new Error('Invalid input parameters');
-        }
-
-        const fractionToken = new FractionToken();
-        const currentOwner = await fractionToken.OwnerOf(ctx, fractionTokenId);
-
-        // Transfer the fraction NFT to the buyer using FractionBatchTransferFrom
         try {
-            await fractionToken.FractionBatchTransferFrom(ctx, currentOwner, buyer, [fractionTokenId]);
+            await this.FractionBatchTransferFrom(ctx, this.NFTOwner, buyer, [fractionTokenId]);
             return true;
         } catch (error) {
             throw new Error(`Error while transferring fractional token: ${error.message}`);
@@ -123,22 +103,17 @@ class MarketplaceContract extends Contract {
     }
     
     async getNFTOwner(ctx, nftId) {
-
         if (!nftId) {
             throw new Error('NFT ID is required');
         }
-
-        const erc721 = new TokenERC721Contract();
-
-        // Call the OwnerOf function
+    
         try {
-            const owner = await erc721.OwnerOf(ctx, nftId);
+            const owner = await this.OwnerOf(ctx, nftId);
             return owner;
         } catch (error) {
             throw new Error(`Error retrieving owner for NFT ID ${nftId}: ${error.message}`);
         }
     }
-
 
 }
 
