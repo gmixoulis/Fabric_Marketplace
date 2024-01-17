@@ -115,7 +115,7 @@ class MarketplaceContract extends FractionTokenContract {
     }
 
     async MintFractionNFT(ctx, originalTokenId, numberOfFractions, expirationDate, fractionJson) {
-        
+
         try {
             await this.MintAndTransferSmallerTokens(ctx, originalTokenId, numberOfFractions, expirationDate, fractionJson);
             return true;
@@ -131,6 +131,33 @@ class MarketplaceContract extends FractionTokenContract {
         } catch (error) {
             throw new Error(`Error while transferring fractional token: ${error.message}`);
         }
+    }
+
+    async TransferNFT(ctx, tokenId, receiver){
+
+        const currentOwner = await this.getNFTOwner(ctx, tokenId);
+        if (!currentOwner) {
+            throw new Error(`No owner found for Token ID: ${tokenId}`);
+        }
+
+        const requester = ctx.clientIdentity.getID();
+        if (requester !== currentOwner) {
+            throw new Error('Only the owner can send their NFT.');
+        }
+
+        await this.TransferFrom(ctx, currentOwner, receiver, tokenId);
+
+        const originalOwner = currentOwner;
+
+        const historyKey = ctx.stub.createCompositeKey(historyPrefix, [tokenId]);
+        const historyEntry = {
+            previousOwner: vault,
+            currentOwner: originalOwner,
+            timestamp: new Date().toISOString(),
+        };
+        await ctx.stub.putState(historyKey, Buffer.from(JSON.stringify(historyEntry)));
+
+        return true;
     }
     
     async getNFTOwner(ctx, nftId) {
