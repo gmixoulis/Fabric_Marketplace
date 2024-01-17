@@ -15,26 +15,13 @@ const nftPrefix = 'nft';
 // const symbolKey = 'symbol';
 const historyPrefix= 'ownershipHistory';
 const balancePrefix = 'balance';
+const fractionPrefix = 'fraction';
 
 class MarketplaceContract extends FractionTokenContract {
 
     async init2(ctx, name, symbol) {
         return await this.init(ctx, name, symbol);
     }
-
-    
-    /*async BalanceOfLocked(ctx) {
-        const iterator = await ctx.stub.getStateByPartialCompositeKey(balancePrefix, [vault]);
-        console.log(iterator)
-        let balance = 0;
-        let result = await iterator.next();
-        while (!result.done) {
-            balance++;
-            result = await iterator.next();
-        }
-
-        return balance;
-    }*/
 
     async BalanceOfLocked(ctx) {
         const iterator = await ctx.stub.getStateByPartialCompositeKey(balancePrefix, [vault]);
@@ -66,30 +53,6 @@ class MarketplaceContract extends FractionTokenContract {
         
         return true;
     }
-
-    /*async LockNFT(ctx, tokenId) {
-        const owner = ctx.clientIdentity.getID();
-        if (!owner) {
-            throw new Error('Failed to get the client identity ID or ID is empty');
-        }
-
-        console.log(`Owner ID: ${owner}`);
-        console.log(`Vault: ${vault}`);
-        console.log(`Token ID: ${tokenId}`);
-
-        this.TransferFrom(ctx, owner, vault, tokenId);
-
-        // Record the transfer in ownership history
-        const historyKey = ctx.stub.createCompositeKey(historyPrefix, [tokenId]);
-        const historyEntry = {
-           previousOwner: owner,
-            currentOwner: vault,
-            timestamp: new Date().toISOString(),
-        };
-        await ctx.stub.putState(historyKey, Buffer.from(JSON.stringify(historyEntry)));
-
-        return true;
-    }*/
 
     async LockNFT(ctx, tokenId) {
         if (!tokenId) {
@@ -132,87 +95,6 @@ class MarketplaceContract extends FractionTokenContract {
     }
 
 
-
-    //dokimastiko function
-
-    async test(ctx, tokenId) {
-        if (!ctx) {
-            throw new Error('The context is undefined.');
-        }        
-        console.log(ctx)
-        if (!ctx.stub || typeof ctx.stub.getState !== 'function') {
-            throw new Error('The stub is undefined or getState is not available.');
-        }
-        let currentOwner = await this.getNFTOwner(ctx, tokenId);
-        
-        /*while (currentOwner !== vault) {
-             this.TransferFromB(ctx, currentOwner, vault, tokenId);
-    
-            // Recheck the current owner after the transfer
-            currentOwner = await this.getNFTOwner(ctx, tokenId);
-    
-            // Optional: Add a delay between retries to avoid potential rate limiting or to reduce load
-            //await new Promise(resolve => setTimeout(resolve, 1000));
-        }*/
-
-        for (let i = 0; i < tokenId.length; i++) {
-            await this.TransferFrom(ctx, currentOwner, vault, tokenId[i]);
-        }
-    }
-
-
-
-
-    //idia me tin TransferFrom apla tin evala edw mesa
-
-    async TransferFromB(ctx, from, to, tokenId) {
-        // Check contract options are already set first to execute the function
-        await this.CheckInitialized(ctx);
-
-        const sender = ctx.clientIdentity.getID();
-
-        const nft = await this._readNFT(ctx, tokenId);
-
-        // Check if the sender is the current owner, an authorized operator,
-        // or the approved client for this non-fungible token.
-        const owner = nft.owner;
-        const tokenApproval = nft.approved;
-        const operatorApproval = await this.IsApprovedForAll(ctx, owner, sender);
-        if (owner !== sender && tokenApproval !== sender && !operatorApproval) {
-            throw new Error('The sender is not allowed to transfer the non-fungible token');
-        }
-
-        // Check if `from` is the current owner
-        if (owner !== from) {
-            throw new Error('The from is not the current owner.');
-        }
-
-        // Clear the approved client for this non-fungible token
-        nft.approved = '';
-
-        // Overwrite a non-fungible token to assign a new owner.
-        nft.owner = to;
-        const nftKey = ctx.stub.createCompositeKey(nftPrefix, [tokenId]);
-        await ctx.stub.putState(nftKey, Buffer.from(JSON.stringify(nft)));
-
-        // Remove a composite key from the balance of the current owner
-        const balanceKeyFrom = ctx.stub.createCompositeKey(balancePrefix, [from, tokenId]);
-        await ctx.stub.deleteState(balanceKeyFrom);
-
-        // Save a composite key to count the balance of a new owner
-        const balanceKeyTo = ctx.stub.createCompositeKey(balancePrefix, [to, tokenId]);
-        await ctx.stub.putState(balanceKeyTo, Buffer.from('\u0000'));
-
-        // Emit the Transfer event
-        const tokenIdInt = parseInt(tokenId);
-        const transferEvent = { from: from, to: to, tokenId: tokenIdInt };
-        ctx.stub.setEvent('Transfer', Buffer.from(JSON.stringify(transferEvent)));
-
-        return true;
-    }
-
-
-
     async UnlockNFT(ctx, tokenId) {
         // Retrieve the original owner of the NFT
         const originalOwner = await this.getNFTOwner(ctx, tokenId);
@@ -231,14 +113,9 @@ class MarketplaceContract extends FractionTokenContract {
 
         return true;
     }
-    
 
-
-    async LockNFTAndMintFractionNFT(ctx, originalTokenId, numberOfFractions, expirationDate, fractionJson) {
-        // Validation and locking of original NFT
-        await this.LockNFT(ctx, originalTokenId);
-
-        // Mint fractional NFTs
+    async MintFractionNFT(ctx, originalTokenId, numberOfFractions, expirationDate, fractionJson) {
+        
         try {
             await this.MintAndTransferSmallerTokens(ctx, originalTokenId, numberOfFractions, expirationDate, fractionJson);
             return true;
@@ -330,16 +207,24 @@ class MarketplaceContract extends FractionTokenContract {
     }
 
     async getAllNFTsInVault(ctx) {
-        const iterator = await ctx.stub.getStateByPartialCompositeKey(historyPrefix, [vault]);
-        const nftsInVault = [];
+        // Create an iterator for all tokens based on the balancePrefix and vault
+        const iterator = await ctx.stub.getStateByPartialCompositeKey(balancePrefix, [vault]);
+        let nftsInVault = [];
     
         let result = await iterator.next();
         while (!result.done) {
             const response = result.value;
             if (response) {
-                const record = JSON.parse(response.value.toString('utf8'));
-                if (record.currentOwner === vault) {
-                    nftsInVault.push({ tokenId: response.key, ...record });
+                // Extract the tokenId from the composite key
+                const tokenId = ctx.stub.splitCompositeKey(response.key).attributes[1];
+                try {
+                    const currentOwner = await this.getNFTOwner(ctx, tokenId);
+    
+                    if (currentOwner === vault) {
+                        nftsInVault.push(tokenId);
+                    }
+                } catch (error) {
+                    console.error(`Failed to get owner for Token ID ${tokenId}: ${error}`);
                 }
             }
             result = await iterator.next();
@@ -349,6 +234,7 @@ class MarketplaceContract extends FractionTokenContract {
     
         return nftsInVault;
     }
+    
     
     async getUserSpecificData(ctx, userId) {
         if (!userId) {
