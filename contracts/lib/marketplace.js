@@ -49,7 +49,7 @@ class MarketplaceContract extends FractionTokenContract {
  
     async BurnNFT(ctx, tokenId) {
 
-        await this.BurnNFTb(ctx, tokenId);
+        await this.Burn(ctx, tokenId);
         
         return true;
     }
@@ -94,7 +94,7 @@ class MarketplaceContract extends FractionTokenContract {
         return `NFT with Token ID ${tokenId} has been locked in the vault.`;
     }
 
-
+    /*
     async UnlockNFT(ctx, tokenId) {
         // Retrieve the original owner of the NFT
         const originalOwner = await this.getNFTOwner(ctx, tokenId);
@@ -113,6 +113,7 @@ class MarketplaceContract extends FractionTokenContract {
 
         return true;
     }
+    */
 
     async MintFractionNFT(ctx, originalTokenId, numberOfFractions, expirationDate, fractionJson) {
 
