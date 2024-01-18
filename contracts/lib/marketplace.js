@@ -54,6 +54,7 @@ class MarketplaceContract extends FractionTokenContract {
         return true;
     }
 
+
     async LockNFT(ctx, tokenId) {
         if (!tokenId) {
             throw new Error('Token ID is required for locking an NFT.');
@@ -125,13 +126,37 @@ class MarketplaceContract extends FractionTokenContract {
         }
     }
 
-    async BuyFractionNFT(ctx, fractionTokenId, buyer) {
+    async SellFractionNFT(ctx, fractionTokenId, buyer) {
+
+        const currentOwner = await this.getFractionNFTOwner(ctx, fractionTokenId);
+
+        if (!currentOwner) {
+            throw new Error(`No owner found for Token ID: ${fractionTokenId}`);
+        }
+
+        const requester = ctx.clientIdentity.getID();
+        if (requester !== currentOwner) {
+            throw new Error('Only the owner can sell their NFT.');
+        }
+
         try {
-            await this.FractionBatchTransferFrom(ctx, this.NFTOwner, buyer, [fractionTokenId]);
-            return true;
+            await this.TransferFractionFrom(ctx, currentOwner, buyer, fractionTokenId);
         } catch (error) {
             throw new Error(`Error while transferring fractional token: ${error.message}`);
         }
+
+        const originalOwner = currentOwner;
+
+        const historyKey = ctx.stub.createCompositeKey(historyPrefix, [fractionTokenId]);
+        const historyEntry = {
+            previousOwner: vault,
+            currentOwner: originalOwner,
+            timestamp: new Date().toISOString(),
+        };
+        await ctx.stub.putState(historyKey, Buffer.from(JSON.stringify(historyEntry)));
+
+        return true;
+
     }
 
     async TransferNFT(ctx, tokenId, receiver){
@@ -168,6 +193,19 @@ class MarketplaceContract extends FractionTokenContract {
     
         try {
             const owner = await this.OwnerOf(ctx, nftId, nftPrefix);
+            return owner;
+        } catch (error) {
+            throw new Error(`Error retrieving owner for NFT ID ${nftId}: ${error.message}`);
+        }
+    }
+
+    async getFractionNFTOwner(ctx, nftId) {
+        if (!nftId) {
+            throw new Error('NFT ID is required');
+        }
+    
+        try {
+            const owner = await this.OwnerOf(ctx, nftId, fractionPrefix);
             return owner;
         } catch (error) {
             throw new Error(`Error retrieving owner for NFT ID ${nftId}: ${error.message}`);
