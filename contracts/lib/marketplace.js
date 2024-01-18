@@ -16,6 +16,7 @@ const nftPrefix = 'nft';
 const historyPrefix= 'ownershipHistory';
 const balancePrefix = 'balance';
 const fractionPrefix = 'fraction';
+const expirationPrefix = 'expiration'
 
 class MarketplaceContract extends FractionTokenContract {
 
@@ -116,17 +117,17 @@ class MarketplaceContract extends FractionTokenContract {
     }
     */
 
-    async MintFractionNFT(ctx, originalTokenId, numberOfFractions, expirationDate, fractionJson) {
+    async MintFractionNFT(ctx, originalTokenId, numberOfFractions, fractionJson) {
 
         try {
-            await this.MintAndTransferSmallerTokens(ctx, originalTokenId, numberOfFractions, expirationDate, fractionJson);
+            await this.MintAndTransferSmallerTokens(ctx, originalTokenId, numberOfFractions, fractionJson);
             return true;
         } catch (error) {
             throw new Error(`Error while minting fractional tokens: ${error.message}`);
         }
     }
 
-    async SellFractionNFT(ctx, fractionTokenId, buyer) {
+    async SellFractionNFT(ctx, fractionTokenId, buyer, expirationPeriodInSeconds) {
 
         const currentOwner = await this.getFractionNFTOwner(ctx, fractionTokenId);
 
@@ -147,17 +148,51 @@ class MarketplaceContract extends FractionTokenContract {
 
         const originalOwner = currentOwner;
 
+        // Record history
         const historyKey = ctx.stub.createCompositeKey(historyPrefix, [fractionTokenId]);
         const historyEntry = {
-            previousOwner: vault,
-            currentOwner: originalOwner,
+            previousOwner: originalOwner,
+            currentOwner: buyer,
             timestamp: new Date().toISOString(),
         };
         await ctx.stub.putState(historyKey, Buffer.from(JSON.stringify(historyEntry)));
 
+        // Calculate expiration date as the current time plus the duration provided
+        //const date = new Date().toISOString();
+        const timestamp = Math.floor(Date.now() / 1000); // Current timestamp in seconds
+
+
+        const expirationPeriod = expirationPeriodInSeconds;
+        console.log(timestamp)
+        console.log(expirationPeriodInSeconds)
+
+        // Record the expiration entry with a timestamp and expiration period
+        const expirationKey = ctx.stub.createCompositeKey(expirationPrefix, [fractionTokenId]);
+        const expirationEntry = {
+            timestamp: timestamp, // The timestamp when the NFT was sold
+            expirationPeriod: parseInt(expirationPeriod, 10), // Convert the expiration period to an integer
+        };
+        await ctx.stub.putState(expirationKey, Buffer.from(JSON.stringify(expirationEntry)));
+
         return true;
 
     }
+
+    async ReclaimExpiredNFT(ctx, fractionTokenId) {
+        
+        const caller = ctx.clientIdentity.getID();
+
+        // Transfer the NFT back to the original owner
+        try {
+            await this.TransferExpiredFractionBack(ctx, ctx.clientIdentity.getID(), caller, fractionTokenId);
+        } catch (error) {
+            throw new Error(`Error while transferring the FractionNFT back to the original owner: ${error.message}`);
+        }
+    
+        return true;
+    }
+    
+    
 
     async TransferNFT(ctx, tokenId, receiver){
 
