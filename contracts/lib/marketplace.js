@@ -96,26 +96,64 @@ class MarketplaceContract extends FractionTokenContract {
         return `NFT with Token ID ${tokenId} has been locked in the vault.`;
     }
 
-    /*
     async UnlockNFT(ctx, tokenId) {
-        // Retrieve the original owner of the NFT
-        const originalOwner = await this.getNFTOwner(ctx, tokenId);
 
-        // Transfer the NFT from the vault back to the original owner
-        await this.Transfer(ctx, vault, originalOwner, tokenId);
+        const caller = ctx.clientIdentity.getID();
+    
+        // Check if the caller owns all fractions of the NFT
+        const fractionOwnership = await this.verifyFractionOwnership(ctx, tokenId, caller);
+        if (!fractionOwnership) {
+            throw new Error('Caller does not own all fractions of the NFT.');
+        }
+    
+        // Burn all fractional tokens
+        const numberOfFractions = await this.countFractionalTokens(ctx, tokenId);
+        for (let i = 1; i <= numberOfFractions; i++) {
+            const fractionTokenId = `${tokenId}-${i}`;
+            await this.Burn(ctx, fractionTokenId, fractionPrefix);
+        }
 
-        // Update the historical record of the NFT transfer
+    
+        // Transfer the original NFT from the vault to the caller
+        await this.Unlock(ctx, vault, caller, tokenId);
+    
+        // Update the ownership history
         const historyKey = ctx.stub.createCompositeKey(historyPrefix, [tokenId]);
         const historyEntry = {
             previousOwner: vault,
-            currentOwner: originalOwner,
+            currentOwner: caller,
             timestamp: new Date().toISOString(),
         };
         await ctx.stub.putState(historyKey, Buffer.from(JSON.stringify(historyEntry)));
-
-        return true;
+    
+        return `Original NFT with Token ID ${tokenId} has been unlocked and transferred to ${caller}`;
     }
-    */
+    
+    async verifyFractionOwnership(ctx, originalTokenId, owner) {
+        let ownsAllFractions = true;
+        let fractionCounter = 1;
+    
+        while (true) {
+            const fractionTokenId = `${originalTokenId}-${fractionCounter}`;
+            try {
+                const fractionOwner = await this.OwnerOf(ctx, fractionTokenId, fractionPrefix);
+                console.log(fractionOwner)
+                if (fractionOwner !== owner) {
+                    ownsAllFractions = false;
+                    break;
+                }
+            } catch (error) {
+                // Break the loop if the fractional NFT does not exist
+                break;
+            }
+            fractionCounter++;
+        }
+    
+        return ownsAllFractions;
+    }
+    
+    
+    
 
     async MintFractionNFT(ctx, originalTokenId, numberOfFractions, fractionJson) {
 
