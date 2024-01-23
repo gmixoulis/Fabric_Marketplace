@@ -15,6 +15,7 @@ const nftPrefix = 'nft';
 // const symbolKey = 'symbol';
 const historyPrefix= 'ownershipHistory';
 const balancePrefix = 'balance';
+const balanceFractionPrefix = 'fractionBalance';
 const fractionPrefix = 'fraction';
 const expirationPrefix = 'expiration'
 
@@ -100,6 +101,8 @@ class MarketplaceContract extends FractionTokenContract {
 
         const caller = ctx.clientIdentity.getID();
     
+        //todo: elegxos prin burn gia ton previous owner ktl
+
         // Check if the caller owns all fractions of the NFT
         const fractionOwnership = await this.verifyFractionOwnership(ctx, tokenId, caller);
         if (!fractionOwnership) {
@@ -112,6 +115,7 @@ class MarketplaceContract extends FractionTokenContract {
             const fractionTokenId = `${tokenId}-${i}`;
             await this.Burn(ctx, fractionTokenId, fractionPrefix);
         }
+
 
     
         // Transfer the original NFT from the vault to the caller
@@ -404,6 +408,14 @@ class MarketplaceContract extends FractionTokenContract {
 
     async MintWithTokenURIS2(ctx, tokenId, metadata, dataHash){
         return this.MintWithTokenURI(ctx, tokenId, metadata, dataHash);
+    }
+
+    async NFTBalanceOf (ctx, userId) {
+        return this.BalanceOf(ctx, userId, balancePrefix);
+    }
+
+    async FractionNFTBalanceOf (ctx, userId) {
+        return this.BalanceOf(ctx, userId, balanceFractionPrefix);
     }
 
 
