@@ -1,18 +1,37 @@
-# **FraMark** - A Blockchain **Mar**ketplace for a 5G Network Management using **Fra**ctional NFTs
+# Enterprise Asset Marketplace: Fabric ERC721
 
-FraMark is an innovative blockchain-based marketplace framework for 5G network management, leveraging Hyperledger Fabric and fractional NFTs. This approach introduces a novel system for issuing and managing fractionalized digital assets representing 5G resources, aimed at enhancing network efficiency. Central to this framework is the goal of achieving low latency and high throughput in transaction processing, critical for the demands of modern 5G networks. 
+## ⛓️ Project Overview
 
-A paper that will be published outlines prospective benefits, challenges, and future directions, including the potential integration of tokenomics, to offer insights into the future of 5G network management.
+**Fabric Marketplace** is an enterprise-grade blockchain solution implementing the **ERC721 Non-Fungible Token (NFT)** standard on **Hyperledger Fabric**. Unlike public chain NFTs, this project demonstrates how digital assets can be managed in a permissioned, privacy-preserving consortium environment suitable for supply chain or corporate asset tracking.
 
-![FraMark Architecture](./img/architecture.png)
+## 🔑 Key Features
 
-# Authors
+-   **Chaincode Implementation**: Custom business logic written in Node.js implementing the `fabric-contract-api`.
+-   **ERC721 Compliance**: Adapts the popular Ethereum standard for the Hyperledger permissioned model (Minting, Transferring, Burning).
+-   **Unit Testing**: Comprehensive test suite using `Mocha`, `Chai`, and `Sinon` to ensure contract reliability.
+-   **Linting & Quality**: Enforced code quality standards with `ESLint`.
 
-George Michoulis, Kyros Tsourdinis, George Niotis, George Andronikidis, Konstantinos Kyranou, Zisis Batzos
+## 🛠️ Tech Stack & Skills
 
+-   **Blockchain Framework**: Hyperledger Fabric v2.x
+-   **Language**: JavaScript / Node.js
+-   **Testing**: Mocha, Chai, Sinon
+-   **Concepts**: Chaincode Development, Permissioned Blockchains, Asset Tokenization
 
-Sidroco Holdings Ltd
+## 💡 Innovation
 
-Research & Development Department, Karyatis 8, Leoforos Kyriakou Matsi 23, CY-1082, Nicosia, Cyprus
+This project bridges the gap between **DeFi standards (ERC721)** and **Enterprise Blockchain**. It showcases the ability to architect complex token economies within private networks, a highly sought-after skill in the corporate blockchain sector.
 
-{g.michoulis, ktsourdinis, geoniotis, gandronikidis, kkyranou, zbatzos}@sidroco.com
+## 🚀 Usage
+
+To start the chaincode in dev mode:
+
+```bash
+npm start
+```
+
+To run tests:
+
+```bash
+npm test
+```
